@@ -1,16 +1,29 @@
+
 // src/components/QuestionnaireSection.js
 import React from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
 import colors from "../constants/colors";
 
-const OPTIONS_YES_NO = [
-  { label: "Yes", value: "yes" },
-  { label: "No", value: "no" },
+const YES_NO_OPTIONS = [
+  { label: "Yes", value: 1 },
+  { label: "No", value: 0 },
+];
+
+const GENDER_OPTIONS = [
+  { label: "Male", value: "male" },
+  { label: "Female", value: "female" },
+];
+
+const SMOKING_OPTIONS = [
+  { label: "Never", value: "never" },
+  { label: "Current", value: "current" },
+  { label: "Former", value: "former" },
 ];
 
 function RadioGroup({ label, value, onChange, options }) {
@@ -55,7 +68,13 @@ function RadioGroup({ label, value, onChange, options }) {
 
 /**
  * Props:
- *  - values: { q1: "yes" | "no" | null, ... }
+ *  - values: {
+ *      bmi: string,
+ *      gender: "male" | "female" | null,
+ *      smokingHistory: "never" | "current" | "former" | null,
+ *      hypertension: 0 | 1 | null,
+ *      heartDisease: 0 | 1 | null,
+ *    }
  *  - onChange: (key, value) => void
  */
 export default function QuestionnaireSection({ values, onChange }) {
@@ -63,24 +82,58 @@ export default function QuestionnaireSection({ values, onChange }) {
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Health Questionnaire</Text>
       <Text style={styles.sectionSubtitle}>
-        These questions help us analyse your risk of Type 2 Diabetes.
+        These questions are based on clinical risk factors used in your
+        diabetes prediction model.
       </Text>
 
+      {/* BMI */}
+      <View style={styles.group}>
+        <Text style={styles.questionLabel}>Body Mass Index (BMI)</Text>
+        <Text style={styles.helperText}>
+          Enter your BMI value (e.g. 27.5). We will validate the number on the
+          server.
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter your BMI"
+          placeholderTextColor={colors.textMuted}
+          keyboardType="decimal-pad"
+          value={values.bmi}
+          onChangeText={(text) => onChange("bmi", text)}
+        />
+      </View>
+
+      {/* Gender */}
       <RadioGroup
-        label="Do you have a family history of diabetes?"
-        value={values.familyHistory}
-        onChange={(v) => onChange("familyHistory", v)}
-        options={OPTIONS_YES_NO}
+        label="Gender"
+        value={values.gender}
+        onChange={(v) => onChange("gender", v)}
+        options={GENDER_OPTIONS}
       />
 
+      {/* Smoking history */}
       <RadioGroup
-        label="Do you smoke regularly?"
-        value={values.smoker}
-        onChange={(v) => onChange("smoker", v)}
-        options={OPTIONS_YES_NO}
+        label="Smoking history"
+        value={values.smokingHistory}
+        onChange={(v) => onChange("smokingHistory", v)}
+        options={SMOKING_OPTIONS}
       />
 
-      {/* TODO: Later we’ll add all your real questions here */}
+      {/* Hypertension */}
+      <RadioGroup
+        label="Do you have hypertension?"
+        value={values.hypertension}
+        onChange={(v) => onChange("hypertension", v)}
+        options={YES_NO_OPTIONS}
+      />
+
+      {/* Heart disease */}
+      <RadioGroup
+        label="Do you have a history of heart disease?"
+        value={values.heartDisease}
+        onChange={(v) => onChange("heartDisease", v)}
+        options={YES_NO_OPTIONS}
+      />
     </View>
   );
 }
@@ -101,7 +154,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   group: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   questionLabel: {
     fontSize: 14,
@@ -109,9 +162,25 @@ const styles = StyleSheet.create({
     color: colors.textDark,
     marginBottom: 8,
   },
+  helperText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 8,
+  },
+  input: {
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    backgroundColor: "#F9FAFB",
+    fontSize: 14,
+    color: colors.textDark,
+  },
   optionsRow: {
     flexDirection: "row",
-    gap: 12,
+    flexWrap: "wrap",
+    gap: 8,
   },
   optionChip: {
     flexDirection: "row",
@@ -122,6 +191,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: "#F9FAFB",
+    marginRight: 8,
+    marginBottom: 8,
   },
   optionChipSelected: {
     borderColor: colors.primary,
@@ -151,7 +222,7 @@ const styles = StyleSheet.create({
     color: colors.textDark,
   },
   optionTextSelected: {
-    color: colors.primaryDark,
+    color: colors.primary,
     fontWeight: "600",
   },
 });
