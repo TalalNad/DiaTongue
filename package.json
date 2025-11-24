@@ -1,0 +1,26 @@
+{
+  "name": "diatongue",
+  "version": "1.0.0",
+  "description": "This is the DiaTongue mobile App.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"cd backend && node server.js\" \"cd frontend && npx expo start\"",
+    "backend": "cd backend && node server.js",
+    "frontend": "cd frontend && npx expo start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TalalNad/DiaTongue.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/TalalNad/DiaTongue/issues"
+  },
+  "homepage": "https://github.com/TalalNad/DiaTongue#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
