@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import colors from "../../src/constants/colors";
 
-const API_BASE_URL = "http://192.168.1.14:8000"; // same as signup
+const API_BASE_URL = "http://192.168.1.4:8000"; // same as signup
 
 export default function LoginScreen() {
   const router = useRouter();
