@@ -1,6 +1,11 @@
 // backend/server.js
+const path = require("path");
 const dotenv = require("dotenv");
-dotenv.config();
+
+const envPath = path.resolve(__dirname, "../.env");
+dotenv.config({ path: envPath });
+
+console.log(`🌱 Loaded env from: ${envPath}`);
 
 const connectDB = require("./src/config/db");
 const app = require("./src/app");
