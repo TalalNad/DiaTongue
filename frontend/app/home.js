@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import colors from "../src/constants/colors";
+import BottomTabBar from "../src/components/BottomTabBar";
 
 const overviewItems = [
   {
@@ -34,45 +35,6 @@ const overviewItems = [
     bg: "#FFF4E6",
   },
 ];
-
-const tabs = [
-  { key: "home", label: "Home", icon: "🏠", route: "/home" },
-  { key: "scan", label: "Scan", icon: "📷", route: "/scan" },
-  { key: "history", label: "History", icon: "⏱", route: "/history" },
-  { key: "profile", label: "Profile", icon: "👤", route: "/profile" },
-];
-
-function BottomTabBar({ activeTab }) {
-  const router = useRouter();
-
-  return (
-    <View style={styles.tabBar}>
-      {tabs.map((tab) => {
-        const isActive = tab.key === activeTab;
-        return (
-          <TouchableOpacity
-            key={tab.key}
-            style={styles.tabItem}
-            onPress={() => {
-              if (!tab.route || (isActive && tab.key === "home")) return;
-              router.push(tab.route);
-            }}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.tabIcon, isActive && styles.tabIconActive]}>
-              {tab.icon}
-            </Text>
-            <Text
-              style={[styles.tabLabel, isActive && styles.tabLabelActive]}
-            >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
 
 export default function HomeScreen() {
   const router = useRouter();
