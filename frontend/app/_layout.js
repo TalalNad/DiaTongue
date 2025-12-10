@@ -6,8 +6,16 @@ export default function AuthLayout() {
       screenOptions={{
         headerShown: false,
         gestureEnabled: true,
-        fullScreenGestureEnabled: true, // allows swipe anywhere from the left edge
+        fullScreenGestureEnabled: true,
       }}
-    />
+    >
+      <Stack.Screen
+        name="home"
+        options={{
+          gestureEnabled: false,
+          fullScreenGestureEnabled: false,
+        }}
+      />
+    </Stack>
   );
 }

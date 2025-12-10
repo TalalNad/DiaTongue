@@ -113,6 +113,8 @@ export default function SignupScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
         >
           {/* Blue header area - scrolls with content */}
           <View style={styles.headerWrapper}>
@@ -228,10 +230,9 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingBottom: 32,
+    flexGrow: 1,
   },
   headerWrapper: {
     backgroundColor: colors.primary,
