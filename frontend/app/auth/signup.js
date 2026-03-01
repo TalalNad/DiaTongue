@@ -15,8 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import colors from "../../src/constants/colors";
 import QuestionnaireSection from "../../src/components/QuestionnaireSection";
-
-const API_BASE_URL = "http://192.168.1.7:8000"; // 👈 your Mac IP
+import API_BASE_URL from "../../src/config/api";
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -113,6 +112,8 @@ export default function SignupScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
         >
           {/* Blue header area - scrolls with content */}
           <View style={styles.headerWrapper}>
@@ -228,10 +229,9 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingBottom: 32,
+    flexGrow: 1,
   },
   headerWrapper: {
     backgroundColor: colors.primary,

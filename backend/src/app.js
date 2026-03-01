@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 
 const authRoutes = require("./routes/auth.routes");
+const chatRoutes = require("./routes/chat.routes");
 
 const app = express();
 
@@ -20,5 +21,8 @@ app.get("/api/health", (req, res) => {
 
 // Auth routes
 app.use("/api/auth", authRoutes);
+
+// Chat routes
+app.use("/api/chat", chatRoutes);
 
 module.exports = app;

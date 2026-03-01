@@ -9,12 +9,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import colors from "../../src/constants/colors";
-
-const API_BASE_URL = "http://192.168.1.7:8000"; // same as signup
+import API_BASE_URL from "../../src/config/api";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -51,7 +54,16 @@ export default function LoginScreen() {
       console.log("Logged in user:", user);
       console.log("JWT token:", token);
 
-      // TODO: store token in SecureStore / AsyncStorage later
+      try {
+        const canStore = await SecureStore.isAvailableAsync();
+        if (canStore) {
+          await SecureStore.setItemAsync("authToken", token);
+        } else {
+          console.warn("SecureStore unavailable; token not stored.");
+        }
+      } catch (storageErr) {
+        console.log("Failed to store auth token:", storageErr);
+      }
 
       // Navigate to home screen after successful login
       router.replace("/home");
@@ -74,64 +86,74 @@ export default function LoginScreen() {
         style={styles.safeArea}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.container}>
-          {/* Logo / header */}
-          <View style={styles.headerIconWrapper}>
-            <View style={styles.iconCircle}>
-              <Text style={styles.iconWave}>~</Text>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.container}>
+              {/* Logo / header */}
+              <View style={styles.headerIconWrapper}>
+                <View style={styles.iconCircle}>
+                  <Text style={styles.iconWave}>~</Text>
+                </View>
+              </View>
+
+              <Text style={styles.title}>Welcome Back</Text>
+              <Text style={styles.subtitle}>
+                Sign in to continue to DiaTongue
+              </Text>
+
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Sign In</Text>
+                <Text style={styles.cardSubtitle}>
+                  Enter your credentials to access your account
+                </Text>
+
+                {/* Email */}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Email</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="your@email.com"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={email}
+                    onChangeText={setEmail}
+                  />
+                </View>
+
+                {/* Password */}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="••••••••"
+                    placeholderTextColor={colors.textMuted}
+                    secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
+                  />
+                </View>
+
+                <TouchableOpacity style={styles.button} onPress={handleLogin}>
+                  <Text style={styles.buttonText}>Sign In</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity style={styles.footer} onPress={goToSignup}>
+                <Text style={styles.footerText}>
+                  Don&apos;t have an account?{" "}
+                  <Text style={styles.footerLink}>Sign up</Text>
+                </Text>
+              </TouchableOpacity>
             </View>
-          </View>
-
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>
-            Sign in to continue to DiaTongue
-          </Text>
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Sign In</Text>
-            <Text style={styles.cardSubtitle}>
-              Enter your credentials to access your account
-            </Text>
-
-            {/* Email */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="your@email.com"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
-
-            {/* Password */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••"
-                placeholderTextColor={colors.textMuted}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-            </View>
-
-            <TouchableOpacity style={styles.button} onPress={handleLogin}>
-              <Text style={styles.buttonText}>Sign In</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.footer} onPress={goToSignup}>
-            <Text style={styles.footerText}>
-              Don&apos;t have an account?{" "}
-              <Text style={styles.footerLink}>Sign up</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -141,6 +163,12 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#F5F5F5",
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   container: {
     flex: 1,
