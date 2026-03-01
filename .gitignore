@@ -1,2 +1,17 @@
+# Python
+ai-service/venv/
+__pycache__/
+*.py[cod]
+*$py.class
+ai-service/models/*.pth
+ai-service/models/*.pt
+ai-service/models/*.joblib
+
+# Node
 node_modules/
+backend/node_modules/
+frontend/node_modules/
 .env
+
+# MacOS
+.DS_Store
