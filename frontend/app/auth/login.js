@@ -12,9 +12,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import colors from "../../src/constants/colors";
 
-const API_BASE_URL = "http://192.168.1.7:8000"; // same as signup
+const API_BASE_URL = "http://192.168.1.11:5050"; // same as signup
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -51,7 +52,13 @@ export default function LoginScreen() {
       console.log("Logged in user:", user);
       console.log("JWT token:", token);
 
-      // TODO: store token in SecureStore / AsyncStorage later
+      // Store auth so we can call protected endpoints (e.g., /api/predict/run)
+      try {
+        await SecureStore.setItemAsync("token", token);
+        await SecureStore.setItemAsync("user", JSON.stringify(user));
+      } catch (e) {
+        console.log("SecureStore write failed:", e?.message || e);
+      }
 
       // Navigate to home screen after successful login
       router.replace("/home");

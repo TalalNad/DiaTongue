@@ -16,9 +16,9 @@ async function startServer() {
   try {
     await connectDB();
 
-    app.listen(PORT, () => {
-      console.log(`🚀 DiaTongue backend listening on port ${PORT}`);
-    });
+    app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 DiaTongue backend listening on port ${PORT}`);
+});
   } catch (err) {
     console.error("❌ Failed to start server:", err.message);
     process.exit(1);
