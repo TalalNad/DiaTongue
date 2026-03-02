@@ -23,7 +23,7 @@ export default function ChatScreen() {
       id: "m0",
       role: "assistant",
       content:
-        "Hi! I’m DiaTongue Assistant. Ask me anything about diabetes, tongue-photo tips, or using the app.",
+        "Hi! I’m DiaTongue Assistant. Ask me anything about diabetes, tongue-photo tips, or any usecase of the app.",
       ts: Date.now(),
     },
   ]);
