@@ -26,7 +26,7 @@ FUSION_JOBLIB = os.getenv("FUSION_JOBLIB", "models/fusion_logreg.joblib")
 SEG_SIZE = 512
 OUT_SIZE = 224
 
-DIABETES_INDEX = int(os.getenv("DIABETES_INDEX", "1"))
+DIABETES_INDEX = int(os.getenv("DIABETES_INDEX", "0"))
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 app = FastAPI(title="Tongue T2DM API")

@@ -51,7 +51,7 @@ export default function HomeScreen() {
       <View style={styles.card}>
         <View style={styles.rowBetween}>
           <Text style={styles.cardTopLeft}>Last Scan Result</Text>
-          <Text style={styles.cardTopRight}>Confidence</Text>
+          <Text style={styles.cardTopRight}>Chances of Diabetes</Text>
         </View>
 
         <View style={styles.rowBetween}>
