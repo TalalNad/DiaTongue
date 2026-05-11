@@ -1,16 +1,18 @@
 import io
 import os
+import sys
 import cv2
 import numpy as np
 from PIL import Image
 
 import torch
-import timm
+import torch.nn as nn
 import joblib
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import segmentation_models_pytorch as smp
 import pandas as pd
+from torchvision.models import swin_t
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from pydantic import BaseModel
@@ -18,12 +20,12 @@ from pydantic import BaseModel
 # -----------------------
 # Config
 # -----------------------
-SEG_CKPT = os.getenv("SEG_CKPT", "models/tongue_unetpp_effb3_best.pt")
-CLF_CKPT = os.getenv("CLF_CKPT", "models/best_classifier_finetuned.pth")
+SEG_CKPT = os.getenv("SEG_CKPT", "models/best_unetplusplus_efficientnetb0.pth")
+CLF_CKPT = os.getenv("CLF_CKPT", "models/swin_tiny_best_finetuned.pth")
 CLIN_PIPE = os.getenv("CLIN_PIPE", "models/clinical_xgboost_pipeline.joblib")
-FUSION_JOBLIB = os.getenv("FUSION_JOBLIB", "models/fusion_logreg.joblib")
+FUSION_JOBLIB = os.getenv("FUSION_JOBLIB", "models/weighted_fusion_model.joblib")
 
-SEG_SIZE = 512
+SEG_SIZE = 256
 OUT_SIZE = 224
 
 DIABETES_INDEX = int(os.getenv("DIABETES_INDEX", "0"))
@@ -42,13 +44,44 @@ MODELS_READY_IMG = False
 MODELS_READY_CLIN = False
 MODELS_READY_FUSION = False
 
-# Albumentations transform (remove unsupported args to avoid warning)
 infer_transform = A.Compose([
-    A.LongestMaxSize(max_size=SEG_SIZE),
-    A.PadIfNeeded(SEG_SIZE, SEG_SIZE, border_mode=cv2.BORDER_CONSTANT, position="center"),
+    A.Resize(SEG_SIZE, SEG_SIZE),
     A.Normalize(),
     ToTensorV2()
 ])
+
+
+class WeightedFusionModel:
+    def __init__(self, clinical_weight=0.5, image_weight=0.5, threshold=0.5):
+        self.clinical_weight = clinical_weight
+        self.image_weight = image_weight
+        self.threshold = threshold
+
+    def predict_proba(self, clinical_prob, image_prob=None):
+        if image_prob is None:
+            probs = np.asarray(clinical_prob, dtype=float)
+            if probs.ndim != 2 or probs.shape[1] != 2:
+                raise ValueError("Expected two columns: clinical_prob and image_prob")
+            clinical_prob = probs[:, 0]
+            image_prob = probs[:, 1]
+            fused_prob = self._fuse(clinical_prob, image_prob)
+            return np.column_stack([1.0 - fused_prob, fused_prob])
+
+        return self._fuse(clinical_prob, image_prob)
+
+    def predict(self, clinical_prob, image_prob=None):
+        probs = self.predict_proba(clinical_prob, image_prob)
+        if image_prob is None:
+            probs = probs[:, 1]
+        return (np.asarray(probs) >= self.threshold).astype(int)
+
+    def _fuse(self, clinical_prob, image_prob):
+        clinical_prob = np.asarray(clinical_prob, dtype=float)
+        image_prob = np.asarray(image_prob, dtype=float)
+        return self.clinical_weight * clinical_prob + self.image_weight * image_prob
+
+
+setattr(sys.modules["__main__"], "WeightedFusionModel", WeightedFusionModel)
 
 @app.get("/health")
 def health():
@@ -65,19 +98,20 @@ def load_image_models():
     if MODELS_READY_IMG:
         return
 
-    # Segmentation
     seg_model = smp.UnetPlusPlus(
-        encoder_name="timm-efficientnet-b0",
+        encoder_name="efficientnet-b0",
         encoder_weights=None,
         in_channels=3,
-        classes=1
+        classes=1,
+        activation=None
     ).to(device)
     seg_model.load_state_dict(torch.load(SEG_CKPT, map_location=device))
     seg_model.eval()
 
-    # Classifier
-    clf_model = timm.create_model("tf_efficientnet_b0", pretrained=False, num_classes=2).to(device)
+    clf_model = swin_t(weights=None)
+    clf_model.head = nn.Linear(clf_model.head.in_features, 1)
     clf_model.load_state_dict(torch.load(CLF_CKPT, map_location=device))
+    clf_model = clf_model.to(device)
     clf_model.eval()
 
     MODELS_READY_IMG = True
@@ -117,71 +151,84 @@ def _read_image_to_bgr(file_bytes: bytes) -> np.ndarray:
     rgb = np.array(img)
     return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
 
-def _letterbox_params(orig_h, orig_w, size):
-    scale = min(size / float(orig_h), size / float(orig_w))
-    new_h = int(round(orig_h * scale))
-    new_w = int(round(orig_w * scale))
-    pad_h = size - new_h
-    pad_w = size - new_w
-    top = pad_h // 2
-    bottom = pad_h - top
-    left = pad_w // 2
-    right = pad_w - left
-    return (top, bottom, left, right)
+def _mask_to_original(mask: np.ndarray, orig_h: int, orig_w: int) -> np.ndarray:
+    resized = cv2.resize(mask.astype("uint8"), (orig_w, orig_h), interpolation=cv2.INTER_NEAREST)
+    return (resized > 0).astype("uint8")
 
-def _mask_to_original(mask_512, orig_h, orig_w, size=512):
-    top, bottom, left, right = _letterbox_params(orig_h, orig_w, size)
-    h, w = mask_512.shape
+def _clean_mask(mask01: np.ndarray) -> np.ndarray:
+    mask = (mask01 > 0).astype(np.uint8)
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
 
-    y0 = top
-    y1 = h - bottom if bottom > 0 else h
-    x0 = left
-    x1 = w - right if right > 0 else w
+    if num_labels > 1:
+        largest = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
+        mask = (labels == largest).astype(np.uint8)
 
-    cropped = mask_512[y0:y1, x0:x1]
-    resized = cv2.resize(cropped, (orig_w, orig_h), interpolation=cv2.INTER_NEAREST)
-    return (resized > 0.5).astype("uint8")
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    return mask
 
-def _gray_world_white_balance(bgr: np.ndarray) -> np.ndarray:
-    img = bgr.astype(np.float32)
-    b, g, r = cv2.split(img)
-    mean_b, mean_g, mean_r = b.mean(), g.mean(), r.mean()
-    mean_gray = (mean_b + mean_g + mean_r) / 3.0 + 1e-6
-    b *= mean_gray / (mean_b + 1e-6)
-    g *= mean_gray / (mean_g + 1e-6)
-    r *= mean_gray / (mean_r + 1e-6)
-    wb = cv2.merge([b, g, r])
-    return np.clip(wb, 0, 255).astype(np.uint8)
-
-def _preprocess_for_classifier(orig_bgr: np.ndarray, mask01: np.ndarray, out_size=224):
+def _crop_tongue(image_rgb: np.ndarray, mask01: np.ndarray, padding_ratio=0.08):
     ys, xs = np.where(mask01 > 0)
     if len(ys) == 0 or len(xs) == 0:
         raise HTTPException(status_code=422, detail="No tongue detected (empty mask).")
 
-    pad = 10
-    h, w = orig_bgr.shape[:2]
-    y0 = max(int(ys.min()) - pad, 0)
-    y1 = min(int(ys.max()) + pad + 1, h)
-    x0 = max(int(xs.min()) - pad, 0)
-    x1 = min(int(xs.max()) + pad + 1, w)
+    x1, x2 = int(xs.min()), int(xs.max())
+    y1, y2 = int(ys.min()), int(ys.max())
+    h, w = image_rgb.shape[:2]
 
-    crop_bgr = orig_bgr[y0:y1, x0:x1].copy()
-    crop_mask = mask01[y0:y1, x0:x1].astype(np.uint8)
+    pad_x = int((x2 - x1 + 1) * padding_ratio)
+    pad_y = int((y2 - y1 + 1) * padding_ratio)
 
-    kernel = np.ones((3, 3), np.uint8)
-    crop_mask = cv2.morphologyEx(crop_mask, cv2.MORPH_CLOSE, kernel, iterations=1)
-    crop_bgr[crop_mask == 0] = 0
+    x1 = max(0, x1 - pad_x)
+    x2 = min(w - 1, x2 + pad_x)
+    y1 = max(0, y1 - pad_y)
+    y2 = min(h - 1, y2 + pad_y)
 
-    wb = _gray_world_white_balance(crop_bgr)
+    return image_rgb[y1:y2 + 1, x1:x2 + 1], mask01[y1:y2 + 1, x1:x2 + 1]
 
-    lab = cv2.cvtColor(wb, cv2.COLOR_BGR2LAB)
-    L, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    L2 = clahe.apply(L)
-    lab2 = cv2.merge([L2, a, b])
-    bgr_eq = cv2.cvtColor(lab2, cv2.COLOR_LAB2BGR)
+def _gray_world_white_balance(image_rgb: np.ndarray, strength=0.4) -> np.ndarray:
+    image = image_rgb.astype(np.float32)
+    non_black = np.any(image > 0, axis=-1)
 
-    return cv2.resize(bgr_eq, (out_size, out_size), interpolation=cv2.INTER_AREA)
+    if not np.any(non_black):
+        return image_rgb
+
+    mean_rgb = image[non_black].mean(axis=0)
+    gray = mean_rgb.mean()
+    scale = gray / (mean_rgb + 1e-8)
+
+    corrected = image.copy()
+    corrected[..., 0] *= 1 + strength * (scale[0] - 1)
+    corrected[..., 1] *= 1 + strength * (scale[1] - 1)
+    corrected[..., 2] *= 1 + strength * (scale[2] - 1)
+    corrected = np.clip(corrected, 0, 255).astype(np.uint8)
+    corrected[~non_black] = 0
+    return corrected
+
+def _resize_and_pad(image_rgb: np.ndarray, size=224) -> np.ndarray:
+    h, w = image_rgb.shape[:2]
+    scale = size / max(h, w)
+    new_w = max(1, int(round(w * scale)))
+    new_h = max(1, int(round(h * scale)))
+
+    resized = cv2.resize(image_rgb, (new_w, new_h))
+    canvas = np.zeros((size, size, 3), dtype=np.uint8)
+    x0 = (size - new_w) // 2
+    y0 = (size - new_h) // 2
+    canvas[y0:y0 + new_h, x0:x0 + new_w] = resized
+    return canvas
+
+def _preprocess_for_classifier(orig_bgr: np.ndarray, mask01: np.ndarray, out_size=224):
+    image_rgb = cv2.cvtColor(orig_bgr, cv2.COLOR_BGR2RGB)
+    mask = _clean_mask(mask01)
+
+    cropped_image, cropped_mask = _crop_tongue(image_rgb, mask)
+    segmented = cropped_image.copy()
+    segmented[cropped_mask == 0] = 0
+
+    balanced = _gray_world_white_balance(segmented)
+    return _resize_and_pad(balanced, size=out_size)
 
 @torch.no_grad()
 def _predict_p_img(bgr: np.ndarray) -> float:
@@ -196,12 +243,11 @@ def _predict_p_img(bgr: np.ndarray) -> float:
 
     logits = seg_model(x)
     probs = torch.sigmoid(logits)[0, 0].detach().cpu().numpy()
-    mask_512 = (probs > 0.5).astype("float32")
+    mask_256 = (probs > 0.5).astype("float32")
 
-    mask_orig = _mask_to_original(mask_512, orig_h, orig_w, size=SEG_SIZE)
-    tongue_224_bgr = _preprocess_for_classifier(bgr, mask_orig, out_size=OUT_SIZE)
+    mask_orig = _mask_to_original(mask_256, orig_h, orig_w)
+    tongue_224_rgb = _preprocess_for_classifier(bgr, mask_orig, out_size=OUT_SIZE)
 
-    tongue_224_rgb = cv2.cvtColor(tongue_224_bgr, cv2.COLOR_BGR2RGB)
     t = torch.from_numpy(tongue_224_rgb).float() / 255.0
     t = t.permute(2, 0, 1).unsqueeze(0).to(device)
 
@@ -210,6 +256,9 @@ def _predict_p_img(bgr: np.ndarray) -> float:
     t = (t - mean) / std
 
     out = clf_model(t)
+    if out.shape[-1] == 1:
+        return float(torch.sigmoid(out).reshape(-1)[0].item())
+
     p = torch.softmax(out, dim=1)[0]
     return float(p[DIABETES_INDEX].item())
 
@@ -226,6 +275,23 @@ def _predict_p_clin(clin_dict: dict) -> float:
         "smoking_history": str(clin_dict["smoking_history"]).strip().lower(),
     }])
     return float(clin_pipe.predict_proba(df)[:, 1][0])
+
+def _predict_p_fused(p_clin: float, p_img: float) -> float:
+    if not MODELS_READY_FUSION:
+        load_fusion_model()
+
+    if isinstance(fusion_model, WeightedFusionModel):
+        p_fused = fusion_model.predict_proba([p_clin], [p_img])
+        return float(np.asarray(p_fused, dtype=float).reshape(-1)[0])
+
+    X = np.array([[p_clin, p_img]], dtype=float)
+    p_fused = fusion_model.predict_proba(X)
+    p_fused = np.asarray(p_fused, dtype=float)
+
+    if p_fused.ndim == 2 and p_fused.shape[1] > 1:
+        return float(p_fused[:, 1][0])
+
+    return float(p_fused.reshape(-1)[0])
 
 # -----------------------
 # Endpoints
@@ -276,11 +342,6 @@ async def predict_fusion(
     }
     p_clin = _predict_p_clin(clin_dict)
 
-    # Fusion
-    if not MODELS_READY_FUSION:
-        load_fusion_model()
-
-    X = np.array([[p_clin, p_img]], dtype=float)
-    p_fused = float(fusion_model.predict_proba(X)[:, 1][0])
+    p_fused = _predict_p_fused(p_clin, p_img)
 
     return {"p_fused": p_fused, "p_img": p_img, "p_clin": p_clin}

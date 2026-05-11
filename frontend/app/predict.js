@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, ActivityIndicat
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 
-const API_BASE_URL = "http://192.168.1.11:5050"; // your Node backend (same as login/signup)
+const API_BASE_URL = "http://192.168.1.9:5050"; // your Node backend (same as login/signup)
 
 export default function PredictScreen() {
   const [imageUri, setImageUri] = useState(null);
