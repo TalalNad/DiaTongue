@@ -1,5 +1,14 @@
+# #!/usr/bin/env bash
+# set -e
+# cd "$(dirname "$0")"
+# source venv/bin/activate
+# python -m uvicorn app:app --host 127.0.0.1 --port 8000
+
+
 #!/usr/bin/env bash
 set -e
+
 cd "$(dirname "$0")"
+
 source venv/bin/activate
-python -m uvicorn app:app --host 127.0.0.1 --port 8000
+python3 -m uvicorn app:app --host 127.0.0.1 --port 8000

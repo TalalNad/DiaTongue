@@ -11,7 +11,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 
-const API_BASE_URL = "http://192.168.1.11:5050"; // ✅ Mac IP + backend port
+const API_BASE_URL = "http://192.168.1.9:5050"; // ✅ Mac IP + backend port
 
 export default function ScanScreen() {
   const [loading, setLoading] = useState(false);

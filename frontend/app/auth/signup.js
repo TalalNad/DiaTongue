@@ -16,7 +16,7 @@ import { useRouter } from "expo-router";
 import colors from "../../src/constants/colors";
 import QuestionnaireSection from "../../src/components/QuestionnaireSection";
 
-const API_BASE_URL = "http://192.168.1.11:5050"; // 👈 your Mac IP
+const API_BASE_URL = "http://192.168.1.9:5050"; // 👈 your Mac IP
 
 export default function SignupScreen() {
   const router = useRouter();

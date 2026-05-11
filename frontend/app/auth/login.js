@@ -15,7 +15,7 @@ import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import colors from "../../src/constants/colors";
 
-const API_BASE_URL = "http://192.168.1.11:5050"; // same as signup
+const API_BASE_URL = "http://192.168.1.9:5050"; // same as signup
 
 export default function LoginScreen() {
   const router = useRouter();
