@@ -1,4 +1,5 @@
 import io
+import traceback
 import os
 import sys
 import cv2
