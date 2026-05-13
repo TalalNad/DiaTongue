@@ -15,8 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import colors from "../../src/constants/colors";
 import QuestionnaireSection from "../../src/components/QuestionnaireSection";
-
-const API_BASE_URL = "http://192.168.1.9:5050"; // 👈 your Mac IP
+import { API_BASE_URL } from "../../src/config/api";
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -61,8 +60,6 @@ export default function SignupScreen() {
       heart_disease: questionnaire.heartDisease,
     };
 
-    console.log("Sending signup payload:", payload);
-
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
         method: "POST",
@@ -73,17 +70,11 @@ export default function SignupScreen() {
       });
 
       const data = await response.json();
-      console.log("Signup response:", data);
 
       if (!response.ok || !data.success) {
-        console.log("Signup failed:", data.message || "Unknown error");
         Alert.alert("Signup failed", data.message || "Something went wrong.");
         return;
       }
-
-      const { token, user } = data.data;
-      console.log("User created:", user);
-      console.log("JWT token:", token);
 
       // Show success and navigate to login
       Alert.alert("Account created", "You can now log in.", [
@@ -94,8 +85,7 @@ export default function SignupScreen() {
           },
         },
       ]);
-    } catch (err) {
-      console.log("Network or server error:", err.message);
+    } catch {
       Alert.alert(
         "Error",
         "Network or server error occurred. Please try again."

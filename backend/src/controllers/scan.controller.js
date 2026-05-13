@@ -75,6 +75,26 @@ async function getLatestScan(req, res) {
   }
 }
 
+// DELETE /api/scans/:id
+async function deleteScan(req, res) {
+  try {
+    const scan = await Prediction.findOneAndDelete({
+      _id: req.params.id,
+      user: req.userId,
+    }).lean();
+
+    if (!scan) {
+      return res.status(404).json({ success: false, message: "Scan not found" });
+    }
+
+    return res.json({ success: true, data: { _id: req.params.id } });
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ success: false, message: err.message || "Failed to delete scan" });
+  }
+}
+
 // ✅ NEW: GET /api/scans/:id/report  (PDF download)
 async function getScanReport(req, res) {
   try {
@@ -188,4 +208,4 @@ async function getScanReport(req, res) {
   }
 }
 
-module.exports = { getMyScans, getLatestScan, getScanReport };
+module.exports = { getMyScans, getLatestScan, getScanReport, deleteScan };

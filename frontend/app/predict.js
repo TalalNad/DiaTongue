@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, ActivityIndicator } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
-
-const API_BASE_URL = "http://192.168.1.9:5050"; // your Node backend (same as login/signup)
+import { API_BASE_URL } from "../src/config/api";
 
 export default function PredictScreen() {
   const [imageUri, setImageUri] = useState(null);

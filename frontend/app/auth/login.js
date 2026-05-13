@@ -14,8 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import colors from "../../src/constants/colors";
-
-const API_BASE_URL = "http://192.168.1.9:5050"; // same as signup
+import { API_BASE_URL } from "../../src/config/api";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -29,7 +28,6 @@ export default function LoginScreen() {
     }
 
     const payload = { email, password };
-    console.log("Sending login payload:", payload);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -41,7 +39,6 @@ export default function LoginScreen() {
       });
 
       const data = await response.json();
-      console.log("Login response:", data);
 
       if (!response.ok || !data.success) {
         Alert.alert("Login failed", data.message || "Invalid credentials.");
@@ -49,21 +46,19 @@ export default function LoginScreen() {
       }
 
       const { token, user } = data.data;
-      console.log("Logged in user:", user);
-      console.log("JWT token:", token);
 
       // Store auth so we can call protected endpoints (e.g., /api/predict/run)
       try {
         await SecureStore.setItemAsync("token", token);
         await SecureStore.setItemAsync("user", JSON.stringify(user));
-      } catch (e) {
-        console.log("SecureStore write failed:", e?.message || e);
+      } catch {
+        Alert.alert("Storage error", "Could not save your session securely.");
+        return;
       }
 
       // Navigate to home screen after successful login
       router.replace("/home");
-    } catch (err) {
-      console.log("Network or server error:", err.message);
+    } catch {
       Alert.alert(
         "Error",
         "Network or server error occurred. Please try again."
